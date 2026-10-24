@@ -32,15 +32,25 @@ jobs:
         with:
           gradle-version: 9.3.1
 
-      # Finds the folder containing settings.gradle.kts, so the build also
-      # works if the project sits inside a subfolder of the repo
+      # Finds the folder that contains settings.gradle.kts, so the build
+      # works even if the project is inside a subfolder of the repo
       - name: Locate Android project
         shell: bash
         run: |
+          # If the project was uploaded as a .zip, unzip it first
+          if [ -z "$(find . \( -name settings.gradle.kts -o -name settings.gradle \) -not -path "*/.git/*" | head -n 1)" ]; then
+            find . -name '*.zip' -not -path "*/.git/*" -print0 | while IFS= read -r -d '' Z; do
+              echo "Unzipping $Z"
+              unzip -q -o "$Z" -d "$(dirname "$Z")/unzipped"
+            done
+          fi
           SETTINGS=$(find . \( -name settings.gradle.kts -o -name settings.gradle \) -not -path "*/.git/*" | head -n 1)
           if [ -z "$SETTINGS" ]; then
             TOP=$(ls -A | grep -v '^.git$' | tr '\n' ' ')
-            echo "::error::No settings.gradle(.kts) in repo. Top-level files: [$TOP]"
+            ZIPS=$(find . -name '*.zip' -not -path "*/.git/*" | tr '\n' ' ')
+            echo "::error::No settings.gradle(.kts) in repo. Top-level files: [$TOP] Zip files: [$ZIPS]"
+            echo "Full file list:"
+            find . -not -path "./.git/*" | head -100
             exit 1
           fi
           PROJECT_DIR=$(dirname "$SETTINGS")
